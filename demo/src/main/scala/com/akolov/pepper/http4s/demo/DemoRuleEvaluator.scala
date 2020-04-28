@@ -6,11 +6,11 @@ trait DemoRuleEvaluator[F[_]] {
   def hasAnyRole: Boolean
   def hasRole(role: String): Boolean
   val userFromHeader: Option[String]
-  def isChild(child: String, parent: String): F[Boolean]
+  def userAuthorized(userId: String, orgId: String): F[Boolean]
 }
 
 trait OrganisationService[F[_]] {
-  def isChild(child: String, parent: String): F[Boolean]
+  def userAuthorized(userId: String, orgId: String): F[Boolean]
 }
 
 object DemoRuleEvaluator {
@@ -30,8 +30,8 @@ object DemoRuleEvaluator {
 
       override def hasAnyRole: Boolean = roles.nonEmpty
 
-      override def isChild(child: String, parent: String): F[Boolean] = {
-        orgService.isChild(child, parent)
+      override def userAuthorized(userId: String, orgId: String): F[Boolean] = {
+        orgService.userAuthorized(userId, orgId)
       }
     }
   }

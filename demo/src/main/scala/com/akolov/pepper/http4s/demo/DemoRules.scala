@@ -27,9 +27,9 @@ trait DemoRules[F[_]] {
     Rule {
       case (i, svc) =>
         if (f.isDefinedAt(i)) {
-          val userId: String = f(i)
-          svc.userFromHeader.map { org =>
-            svc.isChild(userId, org).map {
+          val organisationPathSegment: String = f(i)
+          svc.userFromHeader.map { userIdfromheader =>
+            svc.userAuthorized(userIdfromheader, organisationPathSegment).map {
               case true => AuthorizedAccess
               case false => ForbiddenAccess
             }

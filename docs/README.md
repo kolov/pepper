@@ -60,22 +60,69 @@ and build a new `http4s` route with one function `toProtectedRoutes`, similar to
 
 ```scala
 trait DemoRuleEvaluator[F[_]] {
+  def hasAnyRole: Boolean
   def hasRole(role: String): Boolean
   val userFromHeader: Option[String]
-  def isChild(child: String, parent: String): F[Boolean]
+  def userAuthorized(userId: String, orgId: String): F[Boolean]
 }
 
 trait OrganisationService[F[_]] {
-  def isChild(child: String, parent: String): F[Boolean]
+  def userAuthorized(userId: String, orgId: String): F[Boolean]
+}
+
+trait DemoRules[F[_]] {
+
+  def hasRole(role: String)(implicit m: Monad[F]): Rule[F, Any, DemoRuleEvaluator] = Rule {
+    case (_, svc) =>
+      val result: AuthorizationResult = if (svc.hasRole(role)) {
+        AuthorizedAccess
+      } else if (svc.hasAnyRole) {
+        ForbiddenAccess
+      } else {
+        UnauthorizedAccess
+      }
+      Monad[F].pure(result)
+  }
+
+  def belongsToOrganisation(f: PartialFunction[Any, String])(implicit m: Monad[F]): Rule[F, String, DemoRuleEvaluator] =
+      Rule {
+        case (i, svc) =>
+          if (f.isDefinedAt(i)) {
+            val organisationPathSegment: String = f(i)
+            svc.userFromHeader.map { userIdfromheader =>
+              svc.userAuthorized(userIdfromheader, organisationPathSegment).map {
+                case true => AuthorizedAccess
+                case false => ForbiddenAccess
+              }
+            }.getOrElse(Monad[F].pure(ForbiddenAccess))
+          } else {
+            Monad[F].pure(UnauthorizedAccess)
+          }
+      }
 }
 
 object DemoRuleEvaluator {
 
-  def apply[F[_]](orgService: OrganisationService[F]): List[Header] => DemoRuleEvaluator[F] = { headers =>
-    new DemoRuleEvaluator[F] {
-     /// ....
+    def apply[F[_]](orgService: OrganisationService[F]): List[Header] => DemoRuleEvaluator[F] = { headers =>
+      new DemoRuleEvaluator[F] {
+        lazy val roles: List[String] = headers
+          .find(_.name == AuthHeaders.RoleHeader)
+          .map(_.value.split(",").toList)
+          .getOrElse(List.empty)
+  
+        override def hasRole(role: String): Boolean = roles.contains(role)
+  
+        override lazy val userFromHeader: Option[String] = headers
+          .find(_.name == AuthHeaders.UserHeader)
+          .map(_.value)
+  
+        override def hasAnyRole: Boolean = roles.nonEmpty
+  
+        override def userAuthorized(userId: String, orgId: String): F[Boolean] = {
+          orgService.userAuthorized(userId, orgId)
+        }
+      }
     }
-  }
 }
 
 val statusEndpoint: Endpoint[String, ErrorInfo, String, Nothing] = endpoint.get
@@ -93,8 +140,8 @@ val statusEndpoint: Endpoint[String, ErrorInfo, String, Nothing] = endpoint.get
                         case s => s.toString
                       })
 
-
 ```
+Run the tests to see this in action.
 ## Demo
 
 Not implemented, see the `ProtectedRouteSpec` in the `demo` project.
