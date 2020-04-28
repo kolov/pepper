@@ -111,5 +111,5 @@ lazy val docs = project
   .settings(
     crossScalaVersions := Nil,
     publish / skip     := true,
-    mdocOut            := new java.io.File("README.md")
+    mdocOut            := new java.io.File(".")
   )
