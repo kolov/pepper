@@ -29,6 +29,23 @@ trait ProtectedRoutes[F[_], RE[_[_]], IA, E] extends LiftLogic[F, RE, IA, E] wit
     }
   }
 
+  implicit class ProtectedRoutesSyntax1[I1, O](endpoint: Endpoint[I1, E, O, Nothing]) {
+
+    def toProtectedRoutes(
+      logic: I1 => F[Either[E, O]],
+      rule: Rule[F, RE]
+    )(
+      implicit logicLiftParams: LogicLiftParams,
+      endpointLiftParams: EndpointLiftParams,
+      sync: Sync[F],
+      cs: ContextShift[F],
+      opts: Http4sServerOptions[F]): HttpRoutes[F] = {
+      val elo: Endpoint[(I1, IA), E, O, Nothing] = liftEndpoint1(endpoint)
+      val xx: ServerEndpoint[(I1, IA), E, O, Nothing, F] =
+        elo.serverLogic(withAuthRule1(logic, rule))
+      new EndpointToHttp4sServer[F](opts).toRoutes(xx)
+    }
+  }
 //  implicit class ProtectedRoutesSyntax1[I1, E, O](endpoint: Endpoint[I1, E, O, Nothing]) {
 //
 //    def toProtectedRoutes(

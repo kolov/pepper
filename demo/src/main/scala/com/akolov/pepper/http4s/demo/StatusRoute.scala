@@ -1,10 +1,12 @@
 package com.akolov.pepper.http4s.demo
 
+import java.util.UUID
+
 import cats.implicits._
 import com.akolov.pepper.http4s.demo.Main.AppTask
 import sttp.model.StatusCode
 import sttp.tapir.Codec._
-import sttp.tapir.{Endpoint, oneOf, plainBody, statusMapping, _}
+import sttp.tapir.{Endpoint, oneOf, path, plainBody, statusMapping, _}
 import zio.ZIO
 
 trait ErrorInfo
@@ -48,13 +50,13 @@ System.currentTimeMillis()
     )
   }
 
-  val statusEndpoint = endpoint.get
+  val statusEndpoint: Endpoint[String, ErrorInfo, String, Nothing] = endpoint.get
     .summary("Service health")
     .description("returns 200 if service operates normally.")
-    .in("status")
+    .in("status" / path[String]("id"))
     .out(plainBody[String])
     .baseError
 
 
-  val logic: Unit => AppTask[Either[ErrorInfo, String]] = _ => ZIO.succeed("OK".asRight)
+  val logic: String => AppTask[Either[ErrorInfo, String]] = id => ZIO.succeed(s"Item $id is OK".asRight)
 }

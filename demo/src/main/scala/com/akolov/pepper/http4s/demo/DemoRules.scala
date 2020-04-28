@@ -21,4 +21,16 @@ trait DemoRules[F[_]] {
     }
     Monad[F].pure(result)
   }
+
+  def belongsToOrganisation(userId: String)(implicit m: Monad[F]): Rule[F, DemoRuleEvaluator] = Rule { svc =>
+    val result = svc.organisationHeader.map { org =>
+      svc.isChild(userId, org)
+    } match {
+      case Some(true) => AuthorizedAccess
+      case Some(false) => ForbiddenAccess
+      case None => UnauthorizedAccess
+    }
+
+    Monad[F].pure(result)
+  }
 }

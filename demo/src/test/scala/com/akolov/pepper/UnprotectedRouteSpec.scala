@@ -1,4 +1,4 @@
-package com.akolov.doorman
+package com.akolov.pepper
 
 import com.akolov.pepper.http4s.demo.Main.AppTask
 import com.akolov.pepper.http4s.demo.StatusRoute
@@ -14,7 +14,7 @@ import zio.interop.catz._
 class UnprotectedRouteSpec extends Specification{
   "The unprotected status route" should {
     "return OK" in new TestContext {
-      serve(Request[AppTask](Method.GET, uri"/status")).status must beEqualTo(Status.Ok)
+      serve(Request[AppTask](Method.GET, uri"/status/1")).status must beEqualTo(Status.Ok)
     }
   }
 
