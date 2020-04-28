@@ -5,6 +5,7 @@ Authorisation for `tapir` endpoints.
 Pepper allows to add rule-based authorisation on endpoints, without any changes to the existing 
 authorisation-agnostic endpoint description and logic.
 
+
 # Usage
 
 Add dependency `"com.akolov" %% "pepper" % "0.0.1-SNAPSHOT"`.
@@ -46,15 +47,54 @@ input - in this particular case, it is `PartionFunction[String, String]`.
 With a few implicits in place, given: 
  - `endpoint : Endpoint[I, E, O, S]`
  - `logic: I => F[Either[E, O]]` 
- - Authorisation input `IA`
+ - `EndpointInpt[IA]`, allowing to retrieve `IA` from the request
  - `rule: Rule[F, I, RE]` 
-We can lift them to:
+We can lift the endpoint and the logic to:
  - `endpoint : Endpoint[(I, IA), E, O, S]`
  - `logic: (I, IA) => F[Either[E, O]]` 
  
-and build a new route with one function `toProtectedRoutes`, similar to `toRoutes`:
+and build a new `http4s` route with one function `toProtectedRoutes`, similar to `toRoutes`:
 ```endpoint.toProtectedRoutes(logic, rule)```
 
+## Example
+
+```scala
+trait DemoRuleEvaluator[F[_]] {
+  def hasRole(role: String): Boolean
+  val userFromHeader: Option[String]
+  def isChild(child: String, parent: String): F[Boolean]
+}
+
+trait OrganisationService[F[_]] {
+  def isChild(child: String, parent: String): F[Boolean]
+}
+
+object DemoRuleEvaluator {
+
+  def apply[F[_]](orgService: OrganisationService[F]): List[Header] => DemoRuleEvaluator[F] = { headers =>
+    new DemoRuleEvaluator[F] {
+     /// ....
+    }
+  }
+}
+
+val statusEndpoint: Endpoint[String, ErrorInfo, String, Nothing] = endpoint.get
+    .summary("Service status")
+    .description("returns 200 if service operates normally.")
+    .in("status" / path[String]("id"))
+    .out(plainBody[String])
+    .outError( ...)
+
+
+  val logic: String => AppTask[Either[ErrorInfo, String]] = id => ZIO.succeed(s"Item $id is OK".asRight)
+
+  val routes = statusEndpoint.toProtectedRoutes(logic, ) 
+                   hasRole("Admin ") && (hasRole("User")  || belongsToOrganisation {
+                        case s => s.toString
+                      })
+
+
+```
 ## Demo
 
 Not implemented, see the `ProtectedRouteSpec` in the `demo` project.
@@ -64,7 +104,7 @@ Not implemented, see the `ProtectedRouteSpec` in the `demo` project.
     sbt '+ publishSigned'
     sbt sonatypeReleaseAll
 
-    sbt '++2.12.10! docs/mdoc' // project-docs/target/mdoc/README.md
+    sbt '++2.12.10! docs/mdoc' // project-docs/target/mdoc/README.md    
  
 
 
