@@ -50,8 +50,7 @@ trait RuleSyntax {
   type PlainHeaders = Seq[(String, String)]
 
   implicit class RuleSyntax[F[_]: Monad, I, RE[_[_]]](rule: Rule[F, I, RE]) {
-    def &&(other: Rule[F, I, RE]): Rule[F, I, RE] = Rule.and(rule, other)
-//    def ||[I1 >: I](other: Rule[F, I1, RE]): Rule[F, I, RE] = Rule.or(rule, other)
+    def &&[I2 <: I](other: Rule[F, I2, RE]): Rule[F, I2, RE] = Rule.and(rule, other)
     def ||[I2 <: I](other: Rule[F, I2, RE]): Rule[F, I2, RE] = Rule.or(rule, other)
   }
 }

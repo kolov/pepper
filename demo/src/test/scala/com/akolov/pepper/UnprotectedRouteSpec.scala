@@ -1,6 +1,6 @@
 package com.akolov.pepper
 
-import com.akolov.pepper.http4s.demo.Main.AppTask
+import com.akolov.pepper.http4s.demo.AppType.AppTask
 import com.akolov.pepper.http4s.demo.StatusRoute
 import org.http4s._
 import org.http4s.implicits._

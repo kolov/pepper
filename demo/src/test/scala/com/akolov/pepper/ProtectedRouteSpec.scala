@@ -3,17 +3,7 @@ package com.akolov.pepper
 import cats.data.Kleisli
 import com.akolov.pepper.auth.Rule
 import com.akolov.pepper.http4s.ProtectedRoutes
-import com.akolov.pepper.http4s.demo.Main.AppTask
-import com.akolov.pepper.http4s.demo.{
-  AuthHeaders,
-  DemoRuleEvaluator,
-  DemoRules,
-  ErrorInfo,
-  Forbidden,
-  OrganisationService,
-  StatusRoute,
-  Unauthorized
-}
+import com.akolov.pepper.http4s.demo._
 import org.http4s._
 import org.http4s.implicits._
 import org.http4s.server.Router
@@ -22,13 +12,14 @@ import sttp.tapir.endpoint
 import zio.ZIO
 import zio.interop.catz._
 import com.akolov.pepper.auth.RuleSyntax._
+import com.akolov.pepper.http4s.demo.AppType.AppTask
 
 class ProtectedRouteSpec
     extends Specification with ProtectedRoutes[AppTask, DemoRuleEvaluator, List[sttp.model.Header], ErrorInfo]
     with DemoRules[AppTask] {
 
   val orgService = new OrganisationService[AppTask] {
-    override def isChild(child: String, parent: String): AppTask[Boolean] = ZIO.succeed(parent.contains(child))
+    override def userAuthorized(child: String, parent: String): AppTask[Boolean] = ZIO.succeed(parent.contains(child))
   }
   implicit val logicLiftParams = LogicLiftParams(DemoRuleEvaluator(orgService), Forbidden, Unauthorized)
   implicit val endpointLiftParams = EndpointLiftParams(endpoint.input.and(sttp.tapir.headers))

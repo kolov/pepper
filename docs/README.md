@@ -2,30 +2,41 @@
 
 Authorisation for `tapir` endpoints.
 
-Pepper allows to add rule-based authorisation on endpoints, without any changes to the existing 
-authorisation-agnostic endpoint description and logic.
-
+Add rule-based authorisation to existing authorisation-agnostic endpoint, without any changes to
+the endpoint description and logic.
 
 # Usage
 
-Add dependency `"com.akolov" %% "pepper" % "0.0.1-SNAPSHOT"`.
+Nothing has been released yet. After release:
 
-### Autorisation input
+    `"com.akolov" %% "pepper-core" % "${version}"`. 
+  
+For http4s routes,
 
-Imagine, we want to make some resource, e.g. organisation status at `/status/:orgId` available only to users that are
-members of the organisation. The user Id is availble in the `X-Acme-User-Id` header. To do this we need:
+    `"com.akolov" %% "pepper-http4s" % "${version}T"`
+  
+
+### Authorisation input
+
+Imagine, we want to make some resource, e.g. organisation status endpoint at `/status/:orgId` 
+available only to users that are
+members of the organisation. The user Id is available in the `X-Acme-User-Id` header. To do this we need:
  - (part of) the endpoint input, eg. the `orgId` path segment.
- - elements of the request which are not needed by the endpoint - the `X-Acme-User` header. We'll call this type (`List[Header]`, in this case), `IA`.
- - a rule that, given the data above, can determine if the user is authorised. To do do that, the rul will need som Rule evaluation service `RE[F]`:
-```scala
+ - elements of the request which are not needed by the endpoint - the `X-Acme-User` header. We'll call this type `IA`: `Header` or `List[Header]`, in this example.
+ - a rule that, given the data above, can determine if the user is authorised. To do do that, the rule will need some Rule evaluation service `RE[F]`.
+ 
+A Rule us defined as
 
+```scala
 /*
   F - the effect
   I - the endpoint input
   RE - Rule evaluation service
+ 
 */
 case class Rule[F[_]: Monad, -I, RE[_[_]]](run: ((I, RE[F])) => F[AuthorizationResult])
 ```
+To build `RE[F]`, a `IA` is needed.
 
 For example, this request
 ```bash curl 
@@ -136,16 +147,41 @@ val statusEndpoint: Endpoint[String, ErrorInfo, String, Nothing] = endpoint.get
   val logic: String => AppTask[Either[ErrorInfo, String]] = id => ZIO.succeed(s"Item $id is OK".asRight)
 
   val routes = statusEndpoint.toProtectedRoutes(logic, ) 
-                   hasRole("Admin ") && (hasRole("User")  || belongsToOrganisation {
+                   hasRole("Admin ") || (hasRole("User")  && belongsToOrganisation {
                         case s => s.toString
-                      })
+                      }))
 
 ```
-Run the tests to see this in action.
-## Demo
+Run the `ProtectedRouteSpec` to see this in action.
+ 
 
-Not implemented, see the `ProtectedRouteSpec` in the `demo` project.
+## Demo 
 
+`sbt demo/run` starts simmple server , where the only endpoint is protected with this rule:
+
+```scala
+val routes = StatusRoute.statusEndpoint
+    .toProtectedRoutes(StatusRoute.logic, hasRole("Admin") || (hasRole("User") && belongsToOrganisation {
+      case s => s.toString
+    }))
+```
+
+```
+~/p/a/pepper> curl localhost:8080/status/100 -H"X-User-Roles: Admin" -i
+HTTP/1.1 200 OK 
+Item 100 is OK⏎ 
+                                                                                                                                                                                 
+~/p/a/pepper> curl localhost:8080/status/100 -H"X-User-Roles: User" -i
+HTTP/1.1 403 Forbidden
+
+~/p/a/pepper> curl localhost:8080/status/100 -H"X-User-Roles: User" -H"X-User-Id: 10" -i
+HTTP/1.1 200 OK
+Item 100 is OK⏎  
+                                                                                                                                                                                
+~/p/a/pepper> curl localhost:8080/status/100 -H"X-User-Roles: User" -H"X-User-Id: 11" -i
+HTTP/1.1 403 Forbidden
+
+```
 ## Developer's notes
 
     sbt '+ publishSigned'

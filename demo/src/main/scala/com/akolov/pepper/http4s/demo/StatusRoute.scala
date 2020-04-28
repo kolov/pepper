@@ -1,12 +1,10 @@
 package com.akolov.pepper.http4s.demo
 
-import java.util.UUID
-
 import cats.implicits._
-import com.akolov.pepper.http4s.demo.Main.AppTask
+import com.akolov.pepper.http4s.demo.AppType.AppTask
 import sttp.model.StatusCode
 import sttp.tapir.Codec._
-import sttp.tapir.{Endpoint, oneOf, path, plainBody, statusMapping, _}
+import sttp.tapir._
 import zio.ZIO
 
 trait ErrorInfo
@@ -15,7 +13,8 @@ case object Unauthorized extends ErrorInfo
 case object ServiceError extends ErrorInfo
 
 object StatusRoute {
-System.currentTimeMillis()
+  System.currentTimeMillis()
+
   implicit def errorInfoMapping[E <: ErrorInfo](e: E): EndpointOutput[ErrorInfo] =
     emptyOutput.map(_ => e: ErrorInfo)(_ => ())
 
@@ -35,7 +34,7 @@ System.currentTimeMillis()
 
   implicit class errorSyntax[I, O](e: Endpoint[I, Unit, O, Nothing]) {
 
-    def baseError: Endpoint[I, ErrorInfo,  O, Nothing] = e.errorOut(
+    def baseError: Endpoint[I, ErrorInfo, O, Nothing] = e.errorOut(
       oneOf[ErrorInfo](
         statusMappingValueMatcher(StatusCode.InternalServerError, errorInfoMapping(ServiceError)) {
           case ServiceError => true
@@ -53,10 +52,9 @@ System.currentTimeMillis()
   val statusEndpoint: Endpoint[String, ErrorInfo, String, Nothing] = endpoint.get
     .summary("Service health")
     .description("returns 200 if service operates normally.")
-    .in("status" / path[String]("id"))
+    .in("status" / sttp.tapir.path[String]("id"))
     .out(plainBody[String])
     .baseError
-
 
   val logic: String => AppTask[Either[ErrorInfo, String]] = id => ZIO.succeed(s"Item $id is OK".asRight)
 }
