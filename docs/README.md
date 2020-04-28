@@ -5,18 +5,8 @@ Authorisation for `tapir` endpoints.
 Add rule-based authorisation to existing authorisation-agnostic endpoint, without any changes to
 the endpoint description and logic.
 
-# Usage
 
-Nothing has been released yet. After release:
-
-    `"com.akolov" %% "pepper-core" % "${version}"`. 
-  
-For http4s routes,
-
-    `"com.akolov" %% "pepper-http4s" % "${version}T"`
-  
-
-### Authorisation input
+## Authorisation input
 
 Imagine, we want to make some resource, e.g. organisation status endpoint at `/status/:orgId` 
 available only to users that are
@@ -191,6 +181,18 @@ Item 100 is OK⏎
 HTTP/1.1 403 Forbidden
 
 ```
+
+# Dependencies
+
+Nothing has been released yet. After release:
+
+    `"com.akolov" %% "pepper-core" % "${version}"`. 
+  
+For http4s routes,
+
+    `"com.akolov" %% "pepper-http4s" % "${version}T"`
+    
+    
 ## Developer's notes
 
     sbt '+ publishSigned'
