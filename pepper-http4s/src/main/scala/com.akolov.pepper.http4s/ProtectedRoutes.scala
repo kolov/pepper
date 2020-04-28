@@ -15,7 +15,7 @@ trait ProtectedRoutes[F[_], RE[_[_]], IA, E] extends LiftLogic[F, RE, IA, E] wit
 
     def toProtectedRoutes(
       logic: Unit => F[Either[E, O]],
-      rule: Rule[F, RE]
+      rule: Rule[F, Unit, RE]
     )(
       implicit logicLiftParams: LogicLiftParams,
       endpointLiftParams: EndpointLiftParams,
@@ -33,7 +33,7 @@ trait ProtectedRoutes[F[_], RE[_[_]], IA, E] extends LiftLogic[F, RE, IA, E] wit
 
     def toProtectedRoutes(
       logic: I1 => F[Either[E, O]],
-      rule: Rule[F, RE]
+      rule: Rule[F, I1, RE]
     )(
       implicit logicLiftParams: LogicLiftParams,
       endpointLiftParams: EndpointLiftParams,

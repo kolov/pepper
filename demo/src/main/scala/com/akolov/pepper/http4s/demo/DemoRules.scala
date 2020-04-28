@@ -1,6 +1,6 @@
 package com.akolov.pepper.http4s.demo
 
-import cats._
+import cats._, cats.implicits._
 import com.akolov.pepper.auth._
 
 object AuthHeaders {
@@ -11,26 +11,31 @@ object AuthHeaders {
 
 trait DemoRules[F[_]] {
 
-  def hasRole(role: String)(implicit m: Monad[F]): Rule[F, DemoRuleEvaluator] = Rule { svc =>
-    val result: AuthorizationResult = if (svc.hasRole(role)) {
-      AuthorizedAccess
-    } else if (svc.hasAnyRole) {
-      ForbiddenAccess
-    } else {
-      UnauthorizedAccess
-    }
-    Monad[F].pure(result)
+  def hasRole(role: String)(implicit m: Monad[F]): Rule[F, Any, DemoRuleEvaluator] = Rule {
+    case (_, svc) =>
+      val result: AuthorizationResult = if (svc.hasRole(role)) {
+        AuthorizedAccess
+      } else if (svc.hasAnyRole) {
+        ForbiddenAccess
+      } else {
+        UnauthorizedAccess
+      }
+      Monad[F].pure(result)
   }
 
-  def belongsToOrganisation(userId: String)(implicit m: Monad[F]): Rule[F, DemoRuleEvaluator] = Rule { svc =>
-    val result = svc.organisationHeader.map { org =>
-      svc.isChild(userId, org)
-    } match {
-      case Some(true) => AuthorizedAccess
-      case Some(false) => ForbiddenAccess
-      case None => UnauthorizedAccess
+  def belongsToOrganisation(f: PartialFunction[Any, String])(implicit m: Monad[F]): Rule[F, String, DemoRuleEvaluator] =
+    Rule {
+      case (i, svc) =>
+        if (f.isDefinedAt(i)) {
+          val userId: String = f(i)
+          svc.userFromHeader.map { org =>
+            svc.isChild(userId, org).map {
+              case true => AuthorizedAccess
+              case false => ForbiddenAccess
+            }
+          }.getOrElse(Monad[F].pure(ForbiddenAccess))
+        } else {
+          Monad[F].pure(UnauthorizedAccess)
+        }
     }
-
-    Monad[F].pure(result)
-  }
 }

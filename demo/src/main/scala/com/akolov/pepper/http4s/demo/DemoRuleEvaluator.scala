@@ -5,7 +5,7 @@ import sttp.model.Header
 trait DemoRuleEvaluator[F[_]] {
   def hasAnyRole: Boolean
   def hasRole(role: String): Boolean
-  val organisationHeader: Option[String]
+  val userFromHeader: Option[String]
   def isChild(child: String, parent: String): F[Boolean]
 }
 
@@ -24,8 +24,8 @@ object DemoRuleEvaluator {
 
       override def hasRole(role: String): Boolean = roles.contains(role)
 
-      override lazy val organisationHeader: Option[String] = headers
-        .find(_.name == AuthHeaders.OrganisationHeader)
+      override lazy val userFromHeader: Option[String] = headers
+        .find(_.name == AuthHeaders.UserHeader)
         .map(_.value)
 
       override def hasAnyRole: Boolean = roles.nonEmpty

@@ -9,7 +9,7 @@ import sttp.tapir._
 trait Lifting[F[_], RE[_[_]], IA, E] {
   type EvaluatorBuilder = IA => RE[F] // RuleEvaluator
 
-  case class LogicLiftParams(factory: EvaluatorBuilder, forbidden: E, unauthorized: E)
+  case class LogicLiftParams(eb: EvaluatorBuilder, forbidden: E, unauthorized: E)
   case class EndpointLiftParams(ias: EndpointInput[IA])
 }
 
@@ -17,13 +17,13 @@ trait Lifting[F[_], RE[_[_]], IA, E] {
 trait LiftLogic[F[_], RE[_[_]], IA, E] extends Lifting[F, RE, IA, E] {
 
   def execute[I, O](
-    rule: Rule[F, RE],
+    rule: Rule[F, I, RE],
     i: I,
     ia: IA,
     onAllowed: => F[Either[E, O]]
   )(implicit config: LogicLiftParams, m: Monad[F]): F[Either[E, O]] = {
     for {
-      auth <- rule.run(config.factory(ia))
+      auth <- rule.run((i, config.eb(ia)))
       r <- auth match {
         case AuthorizedAccess =>
           onAllowed
@@ -44,26 +44,26 @@ trait LiftLogic[F[_], RE[_[_]], IA, E] extends Lifting[F, RE, IA, E] {
     */
   def withAuthRule0[O](
     logic: Unit => F[Either[E, O]],
-    rule: Rule[F, RE]
+    rule: Rule[F, Unit, RE]
   )(implicit config: LogicLiftParams, m: Monad[F]): IA => F[Either[E, O]] = { ia =>
     execute(rule, (), ia, logic(()))
   }
 
   def withAuthRule1[I1, O](
     logic: I1 => F[Either[E, O]],
-    rule: Rule[F, RE]
+    rule: Rule[F, I1, RE]
   )(implicit config: LogicLiftParams, m: Monad[F]): ((I1, IA)) => F[Either[E, O]] =
     (t: (I1, IA)) => execute(rule, t._1, t._2, logic(t._1))
 
   def withAuthRule2[I1, I2, O](
     logic: ((I1, I2)) => F[Either[E, O]],
-    rule: Rule[F, RE]
+    rule: Rule[F, (I1, I2), RE]
   )(implicit config: LogicLiftParams, m: Monad[F]): ((I1, I2, IA)) => F[Either[E, O]] =
     (t: (I1, I2, IA)) => execute(rule, (t._1, t._2), t._3, logic((t._1, t._2)))
 
   def withAuthRule3[I1, I2, I3, O](
     logic: ((I1, I2, I3)) => F[Either[E, O]],
-    rule: Rule[F, RE]
+    rule: Rule[F, (I1, I2, I3), RE]
   )(implicit config: LogicLiftParams, m: Monad[F]): ((I1, I2, I3, IA)) => F[Either[E, O]] =
     (t: (I1, I2, I3, IA)) => execute(rule, (t._1, t._2, t._3), t._4, logic((t._1, t._2, t._3)))
 }

@@ -13,9 +13,11 @@ Add dependency `"com.akolov" %% "pepper" % "0.0.1-SNAPSHOT"`.
 
 ### Autorisation input
 
-Authorizing a request is based on:
- - part of of the endpoint input, eg. a segment of the request path
- - other parts of the request which are not needed by the endpoint
+Imagine, we want to make soem resource, e.g. organisation stauts at `/status/:orgId` available only to users that are
+members of the organisation. The user Id is availble in the `X-Acme-User-Id` header. To do this we need:
+ - (part of) the endpoint input, eg. the `orgId` path segment 
+ - elements of the request which are not needed by the endpoint - the `X-Acme-User` header 
+ - a rule that, given the input above, can determine if the user is authorised, possily using external service.
 
 For example, this request
 ```bash curl 
@@ -25,11 +27,33 @@ X-User-Id: 0559fffa-ff00-4472-889b-a55d1ad1757f
 X-Role: User
 ```
 
-may have the following authorization rule:
+can be described with the following rule in `Pepper`:
 ``` scala
-  hasRole("System") || (hasRole("User") &&  isPartOfOrganization(userId, segment("organisation"))
+  hasRole("Admin") || (hasRole("User") && belongsToOrganisation { case s => s }
 ``` 
- 
+The argument of `belongsToOrganisation` is a partial function that retrieves th user from the endpoint input - int this case: String.
+
+Some definitions:
+```scala 
+
+sealed trait AuthorizationResult
+case object ForbiddenAccess extends AuthorizationResult
+case object UnauthorizedAccess extends AuthorizationResult
+case object AuthorizedAccess extends AuthorizationResult
+```
+
+To execute rules, we need so rule evaluation service - `RE[F]`, which will difer per application.  With it we define
+```scala
+
+/*
+  F - the effect
+  I - the endpoint input
+  RE - Rule evaluation service
+*/
+case class Rule[F[_]: Monad, -I, RE[_[_]]](run: ((I, RE[F])) => F[AuthorizationResult])
+```
+
+To build an instance of `RE`, we need: 
 ## Developer's notes
 
     sbt '+ publishSigned'
