@@ -7,13 +7,25 @@ the endpoint description and logic.
 
 
 ## Teaser
-Given ```someEndpoint: Endpoint[I, E, O, S]``` and ```someLogic: I => F[Either[E,O]]```, we can define a http4s route:
+Given ```someEndpoint: Endpoint[(String, String), E, O, S]``` and ```someLogic: (String, String) => F[Either[E,O]]```, 
+we can define a http4s route:
 
 ```scala
 val route = someEndpoint.tProtectedRoutes(someLogic, 
-   hasRole("Admin") || (hasRole("User") && belongsToOrganisation { case (_, orgId, _) => orgId })
+   hasRole("Admin") || (hasRole("User") && belongsToOrganisation { case (_, userId) => userId })
 ```
-The route will evaluate the rule an only run the logic if authorised.
+The route will evaluate the rule and either return Forbidden/Unauthorized, 
+or run the logic and return the result.
+
+It does this by lifting both endpoint and logic: 
+
+```scala 
+ Endpoint[I, E, O, S]   =>   Endpoint[(I, IA), E, O, S]```
+ I => F[Either[E,O]]    =>   (I, IA) => F[Either[E,O]]
+```
+
+Combining those with a RuleEvaluation service of type `RE`,
+built from input of type `IA` we have a route.
     
 ## Authorisation input
 
@@ -35,7 +47,7 @@ A Rule us defined as
 */
 case class Rule[F[_]: Monad, -I, RE[_[_]]](run: ((I, RE[F])) => F[AuthorizationResult])
 ```
-To build `RE[F]`, a `IA` is needed.
+To build `RE[F]`, input of type `IA` is needed.
 
 For example, this request
 ```bash curl 
@@ -45,7 +57,7 @@ X-User-Id: 0559fffa-ff00-4472-889b-a55d1ad1757f
 X-Role: User
 ```
 
-can be described with the following rule in `Pepper`:
+can be protected with the following rule in `Pepper`:
 ``` scala
   hasRole("Admin") || (hasRole("User") && belongsToOrganisation { case s => s }
 ``` 
