@@ -6,6 +6,15 @@ Add rule-based authorisation to existing authorisation-agnostic endpoint, withou
 the endpoint description and logic.
 
 
+## Teaser
+Given ```someEndpoint: Endpoint[I, E, O, S]``` and ```someLogic: I => F[Either[E,O]]```, we can define a http4s route:
+
+```scala
+val route = someEndpoint.tProtectedRoutes(someLogic, 
+   hasRole("Admin") || (hasRole("User") && belongsToOrganisation { case (_, orgId, _) => orgId })
+```
+The route will evaluate the rule an only run the logic if authorised.
+    
 ## Authorisation input
 
 Imagine, we want to make some resource, e.g. organisation status endpoint at `/status/:orgId` 
@@ -48,14 +57,28 @@ input - in this particular case, it is `PartionFunction[String, String]`.
 With a few implicits in place, given: 
  - `endpoint : Endpoint[I, E, O, S]`
  - `logic: I => F[Either[E, O]]` 
- - `EndpointInpt[IA]`, allowing to retrieve `IA` from the request
+ - `EndpointInput[IA]`, defining how to retrieve `IA` from the request
  - `rule: Rule[F, I, RE]` 
+ 
 We can lift the endpoint and the logic to:
+
  - `endpoint : Endpoint[(I, IA), E, O, S]`
  - `logic: (I, IA) => F[Either[E, O]]` 
  
 and build a new `http4s` route with one function `toProtectedRoutes`, similar to `toRoutes`:
 ```endpoint.toProtectedRoutes(logic, rule)```
+
+The necessary implicits are `EndpointLiftParams` and `LogicLiftParams`:
+
+```scala 
+
+  trait Lifting[F[_], RE[_[_]], IA, E] {
+    type EvaluatorBuilder = IA => RE[F] 
+    case class LogicLiftParams(eb: EvaluatorBuilder, forbidden: E, unauthorized: E)
+    case class EndpointLiftParams(ias: EndpointInput[IA])
+  }
+
+```
 
 ## Example
 
@@ -147,7 +170,8 @@ Run the `ProtectedRouteSpec` to see this in action.
 
 ## Demo 
 
-The demo module defines a simple server, where the only endpoint is protected with this rule:
+The demo module runs a simple ZIO-based server, where the only endpoint `/status/:orgId` 
+is protected with this rule:
 
 ```scala
 val routes = StatusRoute.statusEndpoint
@@ -195,7 +219,7 @@ For http4s routes,
     
 ## Developer's notes
 
-    sbt '+ publishSigned'
+    sbt publishSigned
     sbt sonatypeReleaseAll
 
     sbt '++2.12.10! docs/mdoc' // project-docs/target/mdoc/README.md    
