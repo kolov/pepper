@@ -2,22 +2,29 @@
 
 Authorisation for `tapir` endpoints.
 
-Pepper allows to add rule-based authorisation on endpoints, without any changes to the endpoint 
-description and logic.
+Pepper allows to add rule-based authorisation on endpoints, without any changes to the existing 
+authorisation-agnostic endpoint description and logic.
 
 # Usage
-
-Read how to use `pepper` or jump right to the [demo](#demo)
 
 Add dependency `"com.akolov" %% "pepper" % "0.0.1-SNAPSHOT"`.
 
 ### Autorisation input
 
-Imagine, we want to make soem resource, e.g. organisation stauts at `/status/:orgId` available only to users that are
+Imagine, we want to make some resource, e.g. organisation status at `/status/:orgId` available only to users that are
 members of the organisation. The user Id is availble in the `X-Acme-User-Id` header. To do this we need:
- - (part of) the endpoint input, eg. the `orgId` path segment 
- - elements of the request which are not needed by the endpoint - the `X-Acme-User` header. We'll call this type `IA`.
- - a rule that, given the input above, can determine if the user is authorised, possily using external service.
+ - (part of) the endpoint input, eg. the `orgId` path segment.
+ - elements of the request which are not needed by the endpoint - the `X-Acme-User` header. We'll call this type (`List[Header]`, in this case), `IA`.
+ - a rule that, given the data above, can determine if the user is authorised. To do do that, the rul will need som Rule evaluation service `RE[F]`:
+```scala
+
+/*
+  F - the effect
+  I - the endpoint input
+  RE - Rule evaluation service
+*/
+case class Rule[F[_]: Monad, -I, RE[_[_]]](run: ((I, RE[F])) => F[AuthorizationResult])
+```
 
 For example, this request
 ```bash curl 
@@ -31,27 +38,10 @@ can be described with the following rule in `Pepper`:
 ``` scala
   hasRole("Admin") || (hasRole("User") && belongsToOrganisation { case s => s }
 ``` 
-The argument of `belongsToOrganisation` is a partial function that retrieves th user from the endpoint input - int this case: String.
+Both `hasRole` and `belongsToOrganisation` are methods of `RE`, defined by the application. 
+The argument of `belongsToOrganisation` is a partial function that retrieves the user from the endpoint 
+input - in this particular case, it is `PartionFunction[String, String]`.
 
-Some definitions:
-```scala 
-
-sealed trait AuthorizationResult
-case object ForbiddenAccess extends AuthorizationResult
-case object UnauthorizedAccess extends AuthorizationResult
-case object AuthorizedAccess extends AuthorizationResult
-```
-
-To execute rules, we need so rule evaluation service - `RE[F]`, which will differ per application.  With it we define
-```scala
-
-/*
-  F - the effect
-  I - the endpoint input
-  RE - Rule evaluation service
-*/
-case class Rule[F[_]: Monad, -I, RE[_[_]]](run: ((I, RE[F])) => F[AuthorizationResult])
-```
 
 With a few implicits in place, given: 
  - `endpoint : Endpoint[I, E, O, S]`
@@ -62,8 +52,12 @@ We can lift them to:
  - `endpoint : Endpoint[(I, IA), E, O, S]`
  - `logic: (I, IA) => F[Either[E, O]]` 
  
-and build a new rule with a simple function, similar to `toRoutes`:
+and build a new route with one function `toProtectedRoutes`, similar to `toRoutes`:
 ```endpoint.toProtectedRoutes(logic, rule)```
+
+## Demo
+
+Not implemented, see the `ProtectedRouteSpec` in the `demo` project.
 
 ## Developer's notes
 
