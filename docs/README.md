@@ -16,7 +16,7 @@ Add dependency `"com.akolov" %% "pepper" % "0.0.1-SNAPSHOT"`.
 Imagine, we want to make soem resource, e.g. organisation stauts at `/status/:orgId` available only to users that are
 members of the organisation. The user Id is availble in the `X-Acme-User-Id` header. To do this we need:
  - (part of) the endpoint input, eg. the `orgId` path segment 
- - elements of the request which are not needed by the endpoint - the `X-Acme-User` header 
+ - elements of the request which are not needed by the endpoint - the `X-Acme-User` header. We'll call this type `IA`.
  - a rule that, given the input above, can determine if the user is authorised, possily using external service.
 
 For example, this request
@@ -42,7 +42,7 @@ case object UnauthorizedAccess extends AuthorizationResult
 case object AuthorizedAccess extends AuthorizationResult
 ```
 
-To execute rules, we need so rule evaluation service - `RE[F]`, which will difer per application.  With it we define
+To execute rules, we need so rule evaluation service - `RE[F]`, which will differ per application.  With it we define
 ```scala
 
 /*
@@ -53,7 +53,18 @@ To execute rules, we need so rule evaluation service - `RE[F]`, which will difer
 case class Rule[F[_]: Monad, -I, RE[_[_]]](run: ((I, RE[F])) => F[AuthorizationResult])
 ```
 
-To build an instance of `RE`, we need: 
+With a few implicits in place, given: 
+ - `endpoint : Endpoint[I, E, O, S]`
+ - `logic: I => F[Either[E, O]]` 
+ - Authorisation input `IA`
+ - `rule: Rule[F, I, RE]` 
+We can lift them to:
+ - `endpoint : Endpoint[(I, IA), E, O, S]`
+ - `logic: (I, IA) => F[Either[E, O]]` 
+ 
+and build a new rule with a simple function, similar to `toRoutes`:
+```endpoint.toProtectedRoutes(logic, rule)```
+
 ## Developer's notes
 
     sbt '+ publishSigned'
