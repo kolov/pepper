@@ -157,7 +157,7 @@ Run the `ProtectedRouteSpec` to see this in action.
 
 ## Demo 
 
-`sbt demo/run` starts simmple server , where the only endpoint is protected with this rule:
+The demo module defines a simple server, where the only endpoint is protected with this rule:
 
 ```scala
 val routes = StatusRoute.statusEndpoint
@@ -165,6 +165,15 @@ val routes = StatusRoute.statusEndpoint
       case s => s.toString
     }))
 ```
+
+The service determining if a user belongs to an organisation:
+```scala
+val orgService = new OrganisationService[AppTask] {
+    override def userAuthorized(child: String, parent: String): AppTask[Boolean] = ZIO.succeed(parent.contains(child))
+  }
+```
+
+After `sbt demo/run`:
 
 ```
 ~/p/a/pepper> curl localhost:8080/status/100 -H"X-User-Roles: Admin" -i
