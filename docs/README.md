@@ -81,15 +81,30 @@ can be protected with the following rule in `Pepper`:
 ``` scala
   hasRole("Admin") || (hasRole("User") && isMemberOfOrganisation { case (orgId, _) =< orgId}
 ``` 
-Both `hasRole` and `isMemberOfOrganisation` are methods of `RE`, defined by the application. 
-The argument of `isMemberOfOrganisation` is a partial function that retrieves `orgId` from the endpoint 
-input - in this particular case, it is `PartionFunction[(String, String), String]`.
+
+To do this, we need Rules:
+
+```scala
+def hasRole(role: String): Rule[F, Any, DemoRuleEvaluator] = ???
+def isMemberOfOrganisation(f: PartialFunction[Any, String]): Rule[F, String, DemoRuleEvaluator] = = ???
+```
+
+The application has to define a type allowing the implementation of those rules, e.g.:
+```scala
+trait DemoRuleEvaluator[F[_]] {
+ def hasAnyRole: Boolean
+  def hasRole(role: String): Boolean
+  val userFromHeader: Option[String]
+  def userAuthorized(userId: String, orgId: String): F[Boolean]
+}                                                                                                                                                                                      }
+```
+and a way to build an instance of this trait: `ListpHeader] => DemoRuleEvaluator[Task]`. An example follows below. 
 
 To lift the endpoint and the logic to:
  - `endpoint : Endpoint[(I, IA), E, O, S]`
  - `logic: (I, IA) => F[Either[E, O]]` 
  
-Pepper needs a few implicits, packed in two case classe in a trait:
+Pepper needs a few implicits, packed in two case classes:
 ```scala
 trait Lifting[F[_], RE[_[_]], IA, E] {
   type EvaluatorBuilder = IA => RE[F] // RuleEvaluator
@@ -98,6 +113,8 @@ trait Lifting[F[_], RE[_[_]], IA, E] {
   case class EndpointLiftParams(ias: EndpointInput[IA])
 }
 ```
+
+Thjese are all building block, see the example.
 
 ## Example
 
