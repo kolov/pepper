@@ -1,14 +1,13 @@
 # Pepper
 
-Authorisation for `tapir` endpoints.
+Pure functional expression-based access control for [tapir](https://github.com/softwaremill/tapir) endpoints
 
-Add rule-based authorisation to existing authorisation-agnostic endpoint, without any changes to
-the endpoint description and logic.
-
+Add expression-based authorisation to existing (authorisation-agnostic) endpoints 
+and server logic.
 
 ## Teaser
 
-If you don't know tapir - you should have a look. It is the best way to build REST services in Scala. In short,
+If you don't know tapir - you should have a look! It is the best way to build REST services in Scala. In short,
 first you define an endpoint - a description of what parameters the endpoint takes. An endpoint
 serving `/status/:orgId?fields=name,active` gets 2 parameters from the request, and has type
 `Endpoint[(String, String), ErrorInfo, Status, Nothing]` , assuming it returns a value of type `Status`.
@@ -23,7 +22,9 @@ val route = statusEndpoint.toRoutes(statusLogic)
 
 Pepper allows you to transparently add authorisation logic to the endpoint. The application has 
 to provide its own type whose functions are the building blocks for the rules, 
-  and combine them in rules that are needed by the application:
+and combine them in rules that are needed by the application. 
+It is similar to the Expression-Based Access Control
+in Spring Security - except it is all typed pure functional Scala.
 
 ```scala
 val rule = hasRole("Admin") || (hasRole("User") && isMemberOfOrganisation { case (orgId, _) => orgId })
