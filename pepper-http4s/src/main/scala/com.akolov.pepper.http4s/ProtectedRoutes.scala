@@ -24,7 +24,7 @@ trait ProtectedRoutes[F[_], RE[_[_]], IA, E] extends LiftLogic[F, RE, IA, E] wit
       opts: Http4sServerOptions[F]): HttpRoutes[F] = {
       val elo: Endpoint[IA, E, O, Nothing] = liftEndpoint0(endpoint)
       val xx: ServerEndpoint[IA, E, O, Nothing, F] =
-        elo.serverLogic(withAuthRule0(logic, rule))
+        elo.serverLogic(liftLogic0(logic, rule))
       new EndpointToHttp4sServer[F](opts).toRoutes(xx)
     }
   }
@@ -42,7 +42,7 @@ trait ProtectedRoutes[F[_], RE[_[_]], IA, E] extends LiftLogic[F, RE, IA, E] wit
       opts: Http4sServerOptions[F]): HttpRoutes[F] = {
       val elo: Endpoint[(I1, IA), E, O, Nothing] = liftEndpoint1(endpoint)
       val xx: ServerEndpoint[(I1, IA), E, O, Nothing, F] =
-        elo.serverLogic(withAuthRule1(logic, rule))
+        elo.serverLogic(liftLogic1(logic, rule))
       new EndpointToHttp4sServer[F](opts).toRoutes(xx)
     }
   }

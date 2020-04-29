@@ -1,7 +1,11 @@
 import cats._, cats.implicits._
 
 /**
-  * Result with Proof
+  * Result with Proof. Prof is a List of headers to send back with the response declaring which rule allowed the authorisation.
+  * THis is very specific case, but it happens to be need in the service I am working on.
+  *
+  * Most users can safely ignore this.
+  *
   * @tparam P
   */
 sealed trait AuthResultP[+P] extends Product with Serializable

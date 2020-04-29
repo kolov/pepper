@@ -42,28 +42,34 @@ trait LiftLogic[F[_], RE[_[_]], IA, E] extends Lifting[F, RE, IA, E] {
     * * invokes `logic` if the rule check passes
     * * returns a Forbidden if the rule fails
     */
-  def withAuthRule0[O](
+  def liftLogic0[O](
     logic: Unit => F[Either[E, O]],
     rule: Rule[F, Unit, RE]
   )(implicit config: LogicLiftParams, m: Monad[F]): IA => F[Either[E, O]] = { ia =>
     execute(rule, (), ia, logic(()))
   }
 
-  def withAuthRule1[I1, O](
+  def liftLogic1[I1, O](
     logic: I1 => F[Either[E, O]],
     rule: Rule[F, I1, RE]
   )(implicit config: LogicLiftParams, m: Monad[F]): ((I1, IA)) => F[Either[E, O]] =
     (t: (I1, IA)) => execute(rule, t._1, t._2, logic(t._1))
 
-  def withAuthRule2[I1, I2, O](
+  def liftLogic2[I1, I2, O](
     logic: ((I1, I2)) => F[Either[E, O]],
     rule: Rule[F, (I1, I2), RE]
   )(implicit config: LogicLiftParams, m: Monad[F]): ((I1, I2, IA)) => F[Either[E, O]] =
     (t: (I1, I2, IA)) => execute(rule, (t._1, t._2), t._3, logic((t._1, t._2)))
 
-  def withAuthRule3[I1, I2, I3, O](
+  def liftLogic3[I1, I2, I3, O](
     logic: ((I1, I2, I3)) => F[Either[E, O]],
     rule: Rule[F, (I1, I2, I3), RE]
   )(implicit config: LogicLiftParams, m: Monad[F]): ((I1, I2, I3, IA)) => F[Either[E, O]] =
     (t: (I1, I2, I3, IA)) => execute(rule, (t._1, t._2, t._3), t._4, logic((t._1, t._2, t._3)))
+
+  def liftLogic4[I1, I2, I3, I4, O](
+    logic: ((I1, I2, I3, I4)) => F[Either[E, O]],
+    rule: Rule[F, (I1, I2, I3, I4), RE]
+  )(implicit config: LogicLiftParams, m: Monad[F]): ((I1, I2, I3, I4, IA)) => F[Either[E, O]] =
+    (t: (I1, I2, I3, I4, IA)) => execute(rule, (t._1, t._2, t._3, t._4), t._5, logic((t._1, t._2, t._3, t._4)))
 }

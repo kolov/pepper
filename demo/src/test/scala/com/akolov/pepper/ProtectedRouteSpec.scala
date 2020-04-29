@@ -70,6 +70,7 @@ class ProtectedRouteSpec
     }
 
     "return 401 when User Not part of organisation" in {
+
       val routeUserOrAdmin = protectedWithRules(rule = hasRole("User") || isMemberOfOrganisation {
         case s => s.toString
       })
