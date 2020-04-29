@@ -36,7 +36,7 @@ object Main
   implicit val endpointLiftParams = EndpointLiftParams(endpoint.input.and(sttp.tapir.headers))
 
   val routes: HttpRoutes[AppTask] = StatusRoute.statusEndpoint
-    .toProtectedRoutes(StatusRoute.logic, hasRole("Admin") || (hasRole("User") && belongsToOrganisation {
+    .toProtectedRoutes(StatusRoute.logic, hasRole("Admin") || (hasRole("User") && isMemberOfOrganisation {
       case s => s.toString
     }))
 

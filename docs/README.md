@@ -12,7 +12,7 @@ we can define a http4s route:
 
 ```scala
 val route = someEndpoint.tProtectedRoutes(someLogic, 
-   hasRole("Admin") || (hasRole("User") && belongsToOrganisation { case (_, userId) => userId })
+   hasRole("Admin") || (hasRole("User") && isMemberOfOrganisation { case (_, orgId) => orgId })
 ```
 The route will evaluate the rule and either return Forbidden/Unauthorized, 
 or run the logic and return the result.
@@ -24,8 +24,10 @@ It does this by lifting both endpoint and logic:
  I => F[Either[E,O]]    =>   (I, IA) => F[Either[E,O]]
 ```
 
-Combining those with a RuleEvaluation service of type `RE`,
-built from input of type `IA` we have a route.
+The rules need a RuleEvaluation service of type `RE` with methods `hasRole` etc, which
+work on data from the request (e.g. all headers). This service is built from 
+parts of the request, described with `EndpointInput[IA]`, where `IA` is the additional 
+input tye above.
     
 ## Authorisation input
 
@@ -59,10 +61,10 @@ X-Role: User
 
 can be protected with the following rule in `Pepper`:
 ``` scala
-  hasRole("Admin") || (hasRole("User") && belongsToOrganisation { case s => s }
+  hasRole("Admin") || (hasRole("User") && isMemberOfOrganisation { case s => s }
 ``` 
-Both `hasRole` and `belongsToOrganisation` are methods of `RE`, defined by the application. 
-The argument of `belongsToOrganisation` is a partial function that retrieves the user from the endpoint 
+Both `hasRole` and `isMemberOfOrganisation` are methods of `RE`, defined by the application. 
+The argument of `isMemberOfOrganisation` is a partial function that retrieves the user from the endpoint 
 input - in this particular case, it is `PartionFunction[String, String]`.
 
 
@@ -120,7 +122,7 @@ trait DemoRules[F[_]] {
       Monad[F].pure(result)
   }
 
-  def belongsToOrganisation(f: PartialFunction[Any, String])(implicit m: Monad[F]): Rule[F, String, DemoRuleEvaluator] =
+  def isMemberOfOrganisation(f: PartialFunction[Any, String])(implicit m: Monad[F]): Rule[F, String, DemoRuleEvaluator] =
       Rule {
         case (i, svc) =>
           if (f.isDefinedAt(i)) {
@@ -162,8 +164,8 @@ object DemoRuleEvaluator {
 }
 
 val statusEndpoint: Endpoint[String, ErrorInfo, String, Nothing] = endpoint.get
-    .summary("Service status")
-    .description("returns 200 if service operates normally.")
+    .summary("Organisation status")
+    .description("returns 200 if organisation status is OK")
     .in("status" / path[String]("id"))
     .out(plainBody[String])
     .outError( ...)
@@ -172,7 +174,7 @@ val statusEndpoint: Endpoint[String, ErrorInfo, String, Nothing] = endpoint.get
   val logic: String => AppTask[Either[ErrorInfo, String]] = id => ZIO.succeed(s"Item $id is OK".asRight)
 
   val routes = statusEndpoint.toProtectedRoutes(logic, ) 
-                   hasRole("Admin ") || (hasRole("User")  && belongsToOrganisation {
+                   hasRole("Admin ") || (hasRole("User")  && isMemberOfOrganisation {
                         case s => s.toString
                       }))
 
@@ -187,7 +189,7 @@ is protected with this rule:
 
 ```scala
 val routes = StatusRoute.statusEndpoint
-    .toProtectedRoutes(StatusRoute.logic, hasRole("Admin") || (hasRole("User") && belongsToOrganisation {
+    .toProtectedRoutes(StatusRoute.logic, hasRole("Admin") || (hasRole("User") && isMemberOfOrganisation {
       case s => s.toString
     }))
 ```
@@ -195,7 +197,8 @@ val routes = StatusRoute.statusEndpoint
 The service determining if a user belongs to an organisation:
 ```scala
 val orgService = new OrganisationService[AppTask] {
-    override def userAuthorized(child: String, parent: String): AppTask[Boolean] = ZIO.succeed(parent.contains(child))
+    override def userAuthorized(child: String, parent: String) = 
+       ZIO.succeed(parent.contains(child))
   }
 ```
 

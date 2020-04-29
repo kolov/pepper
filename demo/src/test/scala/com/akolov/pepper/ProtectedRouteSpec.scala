@@ -70,11 +70,7 @@ class ProtectedRouteSpec
     }
 
     "return 401 when User Not part of organisation" in {
-      val r1: Rule[AppTask, String, DemoRuleEvaluator] = hasRole("User")
-      val r2: Rule[AppTask, String, DemoRuleEvaluator] = belongsToOrganisation {
-        case s => s.toString
-      }
-      val routeUserOrAdmin = protectedWithRules(rule = hasRole("User") || belongsToOrganisation {
+      val routeUserOrAdmin = protectedWithRules(rule = hasRole("User") || isMemberOfOrganisation {
         case s => s.toString
       })
 
@@ -85,7 +81,7 @@ class ProtectedRouteSpec
     }
 
     "return 200 when User is part of organisation" in {
-      val routeUserOrAdmin = protectedWithRules(rule = hasRole("User") || belongsToOrganisation {
+      val routeUserOrAdmin = protectedWithRules(rule = hasRole("User") || isMemberOfOrganisation {
         case s => s.toString
       })
 

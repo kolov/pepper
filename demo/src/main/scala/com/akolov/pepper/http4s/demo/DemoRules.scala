@@ -23,7 +23,7 @@ trait DemoRules[F[_]] {
       Monad[F].pure(result)
   }
 
-  def belongsToOrganisation(f: PartialFunction[Any, String])(implicit m: Monad[F]): Rule[F, String, DemoRuleEvaluator] =
+  def isMemberOfOrganisation(f: PartialFunction[Any, String])(implicit m: Monad[F]): Rule[F, String, DemoRuleEvaluator] =
     Rule {
       case (i, svc) =>
         if (f.isDefinedAt(i)) {
