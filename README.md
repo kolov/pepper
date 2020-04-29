@@ -7,36 +7,54 @@ the endpoint description and logic.
 
 
 ## Teaser
-Given ```someEndpoint: Endpoint[(String, String), E, O, S]``` and ```someLogic: (String, String) => F[Either[E,O]]```, 
-we can define a http4s route:
+
+If you don't know tapir - you should have a look. It is the best way to build REST services in Scala. In short,
+first you define an endpoint - a description of what parameters the endpoint takes. An endpoint
+serving `/status/:orgId?fields=name,active` gets 2 parameters from the request, and has type
+`Endpoint[(String, String), ErrorInfo, Status, Nothing]` , assuming it returns a value of type `Status`.
+Note that and endpoint is just a value. If you couple it with a logic with a fitting signature, Tapir can 
+compute a http4s or akka-http route:
 
 ```scala
-val route = someEndpoint.tProtectedRoutes(someLogic, 
-   hasRole("Admin") || (hasRole("User") && isMemberOfOrganisation { case (_, orgId) => orgId })
+val statusEndpoint: Endpoint[(String, String), ErrorInfo, Status, Nothing]
+val statusLogic: (String, String) => F[Either[E,O]]
+val route = statusEndpoint.toRoutes(statusLogic)
 ```
-The route will evaluate the rule and either return Forbidden/Unauthorized, 
-or run the logic and return the result.
 
-It does this by lifting both endpoint and logic: 
+Pepper allows you to transparently add authorisation logic to the endpoint. The application has 
+to provide its own type whose functions are the building blocks for the rules, 
+  and combine them in rules that are needed by the application:
+
+```scala
+val rule = hasRole("Admin") || (hasRole("User") && isMemberOfOrganisation { case (orgId, _) => orgId })
+val protectedRoute = statusEndpoint.toProtectedRoutes(statusLogic, rule)
+```
+
+Pepper will lift `statusLogic` to first evaluate the rule and either return Forbidden/Unauthorized, 
+or run the logic and return the result. `hasRole`, `isMemberOfOrganisation` etc. are not part
+of Pepper - they are defined and provided by the application, represented by tye `RE`. 
+Pepper will also lift the endpoint
+to collect additional parameters from the request (e.g. headers) needed
+to buiild an instans of `RE`:
 
 ```scala 
  Endpoint[I, E, O, S]   =>   Endpoint[(I, IA), E, O, S]```
  I => F[Either[E,O]]    =>   (I, IA) => F[Either[E,O]]
 ```
 
-The rules need a RuleEvaluation service of type `RE` with methods `hasRole` etc, which
-work on data from the request (e.g. all headers). This service is built from 
-parts of the request, described with `EndpointInput[IA]`, where `IA` is the additional 
-input tye above.
-    
-## Authorisation input
+The additional parameters ar of type `IA`, described with `EndpointInput[IA]`.
 
-Imagine, we want to make some resource, e.g. organisation status endpoint at `/status/:orgId` 
-available only to users that are
-members of the organisation. The user Id is available in the `X-Acme-User-Id` header. To do this we need:
- - (part of) the endpoint input, eg. the `orgId` path segment.
- - elements of the request which are not needed by the endpoint - the `X-Acme-User` header. We'll call this type `IA`: `Header` or `List[Header]`, in this example.
- - a rule that, given the data above, can determine if the user is authorised. To do do that, the rule will need some Rule evaluation service `RE[F]`.
+This may sound complicated. The documentation is in early stage, and 
+the explaining clearly is hard.
+Jump to the Demo application and see the sample code below, or to the [Demo](#demo).
+    
+## Authorisation input data
+
+In the example above, we want to make `/status/:orgId` accessible only by users that are
+members of the organisation. The User Id is available in the `X-Acme-User-Id` header. To do this we need:
+ - (part of) the endpoint input, - the `orgId` path segment.
+ - elements of the request which are not needed by the endpoint - the `X-Acme-User-Id` header. We'll call this type `IA`: `Header` or `List[Header]`, in this example.
+ - a rule that, given both pieces of data, can determine if the user is authorized. 
  
 A Rule us defined as
 
@@ -44,16 +62,16 @@ A Rule us defined as
 /*
   F - the effect
   I - the endpoint input
-  RE - Rule evaluation service
- 
+  RE -  Rule Evaluation type
+
 */
 case class Rule[F[_]: Monad, -I, RE[_[_]]](run: ((I, RE[F])) => F[AuthorizationResult])
 ```
-To build `RE[F]`, input of type `IA` is needed.
+An instance of `RE[F]`, can be built from a value of type `IA` - (List[Header]).
 
-For example, this request
+So this request
 ```bash curl 
-GET /organisation/1232321/accounts
+GET /organisation/1232321?fields=name,active 
 
 X-User-Id: 0559fffa-ff00-4472-889b-a55d1ad1757f
 X-Role: User
@@ -61,42 +79,31 @@ X-Role: User
 
 can be protected with the following rule in `Pepper`:
 ``` scala
-  hasRole("Admin") || (hasRole("User") && isMemberOfOrganisation { case s => s }
+  hasRole("Admin") || (hasRole("User") && isMemberOfOrganisation { case (orgId, _) =< orgId}
 ``` 
 Both `hasRole` and `isMemberOfOrganisation` are methods of `RE`, defined by the application. 
-The argument of `isMemberOfOrganisation` is a partial function that retrieves the user from the endpoint 
-input - in this particular case, it is `PartionFunction[String, String]`.
+The argument of `isMemberOfOrganisation` is a partial function that retrieves `orgId` from the endpoint 
+input - in this particular case, it is `PartionFunction[(String, String), String]`.
 
-
-With a few implicits in place, given: 
- - `endpoint : Endpoint[I, E, O, S]`
- - `logic: I => F[Either[E, O]]` 
- - `EndpointInput[IA]`, defining how to retrieve `IA` from the request
- - `rule: Rule[F, I, RE]` 
- 
-We can lift the endpoint and the logic to:
-
+To lift the endpoint and the logic to:
  - `endpoint : Endpoint[(I, IA), E, O, S]`
  - `logic: (I, IA) => F[Either[E, O]]` 
  
-and build a new `http4s` route with one function `toProtectedRoutes`, similar to `toRoutes`:
-```endpoint.toProtectedRoutes(logic, rule)```
+Pepper needs a few implicits, packed in two case classe in a trait:
+```scala
+trait Lifting[F[_], RE[_[_]], IA, E] {
+  type EvaluatorBuilder = IA => RE[F] // RuleEvaluator
 
-The necessary implicits are `EndpointLiftParams` and `LogicLiftParams`:
-
-```scala 
-
-  trait Lifting[F[_], RE[_[_]], IA, E] {
-    type EvaluatorBuilder = IA => RE[F] 
-    case class LogicLiftParams(eb: EvaluatorBuilder, forbidden: E, unauthorized: E)
-    case class EndpointLiftParams(ias: EndpointInput[IA])
-  }
-
+  case class LogicLiftParams(eb: EvaluatorBuilder, forbiddenValue: E, unauthorizedValue: E)
+  case class EndpointLiftParams(ias: EndpointInput[IA])
+}
 ```
 
 ## Example
 
 ```scala
+
+// The application rules logic needs theis building blocks
 trait DemoRuleEvaluator[F[_]] {
   def hasAnyRole: Boolean
   def hasRole(role: String): Boolean
@@ -104,10 +111,12 @@ trait DemoRuleEvaluator[F[_]] {
   def userAuthorized(userId: String, orgId: String): F[Boolean]
 }
 
+// The actual ceck is an effect, possibly a database lookup
 trait OrganisationService[F[_]] {
   def userAuthorized(userId: String, orgId: String): F[Boolean]
 }
 
+// We can use the functions from DemoRuleEvaluator to define rules:
 trait DemoRules[F[_]] {
 
   def hasRole(role: String)(implicit m: Monad[F]): Rule[F, Any, DemoRuleEvaluator] = Rule {
@@ -141,6 +150,7 @@ trait DemoRules[F[_]] {
 
 object DemoRuleEvaluator {
 
+    // return IA => RE[F] 
     def apply[F[_]](orgService: OrganisationService[F]): List[Header] => DemoRuleEvaluator[F] = { headers =>
       new DemoRuleEvaluator[F] {
         lazy val roles: List[String] = headers
@@ -163,6 +173,8 @@ object DemoRuleEvaluator {
     }
 }
 
+// All is in place, define the endpoint and the server logic as usual
+
 val statusEndpoint: Endpoint[String, ErrorInfo, String, Nothing] = endpoint.get
     .summary("Organisation status")
     .description("returns 200 if organisation status is OK")
@@ -173,14 +185,15 @@ val statusEndpoint: Endpoint[String, ErrorInfo, String, Nothing] = endpoint.get
 
   val logic: String => AppTask[Either[ErrorInfo, String]] = id => ZIO.succeed(s"Item $id is OK".asRight)
 
+// build protected route
   val routes = statusEndpoint.toProtectedRoutes(logic, ) 
                    hasRole("Admin ") || (hasRole("User")  && isMemberOfOrganisation {
                         case s => s.toString
                       }))
 
 ```
-Run the `ProtectedRouteSpec` to see this in action.
- 
+Run the `ProtectedRouteSpec` or the [Demo](#demo) to see this in action.
+
 
 ## Demo 
 
