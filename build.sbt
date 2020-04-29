@@ -22,9 +22,10 @@ ThisBuild / publishMavenStyle := true
 ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / "sonatype_credentials")
 ThisBuild / description       := "Authorization for Tapir endpoints"
 ThisBuild / licenses          := Seq("MIT License" -> url("https://github.com/kolov/pepper/blob/master/LICENSE"))
-ThisBuild / useGpg            := true
+//ThisBuild / useGpg            := true
 ThisBuild / homepage          := Some(url("https://github.com/kolov/pepper"))
 ThisBuild / releaseCrossBuild := true
+ThisBuild / crossScalaVersions := supportedScalaVersions
 ThisBuild / pomIncludeRepository := { _ =>
   false
 }
@@ -51,7 +52,6 @@ ThisBuild / developers := List(
 )
 
 lazy val commonSettings = Seq(
-  crossScalaVersions := supportedScalaVersions,
   addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.0" cross CrossVersion.full)
 )
 
@@ -100,8 +100,7 @@ lazy val demo = (project in file("demo"))
 lazy val root = (project in file("."))
   .aggregate(core, `pepper-http4s`, demo)
   .settings(
-    publish / skip     := true,
-    crossScalaVersions := Nil
+    publish / skip     := true
   )
 
 lazy val docs = project
@@ -109,7 +108,6 @@ lazy val docs = project
   .dependsOn(demo)
   .enablePlugins(MdocPlugin)
   .settings(
-    crossScalaVersions := Nil,
     publish / skip     := true,
     mdocOut            := new java.io.File(".")
   )

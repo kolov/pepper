@@ -25,7 +25,7 @@ trait AuthorizationResultSyntax {
 
   implicit def semigroupAuthorizationResult[P: Semigroup] = new Semigroup[AuthResultP[P]] {
 
-      def combine(x: AuthResultP[P], y: AuthResultP[P]): AuthResultP[P] =
+    def combine(x: AuthResultP[P], y: AuthResultP[P]): AuthResultP[P] =
       (x, y) match {
         case (AuthorizedAccessP(h1), AuthorizedAccessP(h2)) => AuthorizedAccessP(h1 |+| h2)
         case (AuthorizedAccessP(_), denied) => denied
@@ -61,7 +61,6 @@ object Rule extends AuthorizationResultSyntax {
 }
 
 trait RuleSyntax {
-  type PlainHeaders = Seq[(String, String)]
 
   implicit class RuleSyntax[F[_]: Monad, RE[_[_]], P: Semigroup](rule: Rule[F, RE, P]) {
     def &&(other: Rule[F, RE, P]): Rule[F, RE, P] = Rule.and(rule, other)

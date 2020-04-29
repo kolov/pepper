@@ -254,18 +254,16 @@ HTTP/1.1 403 Forbidden
 
 # Dependencies
 
-Nothing has been released yet. After release:
+Nothing has been released yet, current version is 0.1.0-SNAPSHOT. Add the following dependencies:
 
-    `"com.akolov" %% "pepper-core" % "${version}"`. 
-  
-For http4s routes,
-
-    `"com.akolov" %% "pepper-http4s" % "${version}T"`
+    "com.akolov" %% "pepper-core" % "${version}"  
+    "com.akolov" %% "pepper-http4s" % "${version}" // for http4s
     
     
 ## Developer's notes
 
-    sbt publishSigned
+    set GPG_TTY (tty)
+    sbt `+ publishSigned'
     sbt sonatypeReleaseAll
 
     sbt '++2.12.10! docs/mdoc' // project-docs/target/mdoc/README.md    
