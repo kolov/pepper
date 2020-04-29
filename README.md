@@ -46,8 +46,10 @@ to buiild an instans of `RE`:
 The additional parameters ar of type `IA`, described with `EndpointInput[IA]`.
 
 This may sound complicated. The documentation is in early stage, and 
-the explaining clearly is hard.
-Jump to the Demo application and see the sample code below, or to the [Demo](#demo).
+the explaining the concepts clearly is hard.
+
+See the source code of the [Demo](#demo) service or see the sample code below,
+tho code speaks for itself.
     
 ## Authorisation input data
 
@@ -254,18 +256,16 @@ HTTP/1.1 403 Forbidden
 
 # Dependencies
 
-Nothing has been released yet. After release:
+Nothing has been released yet, current version is 0.1.0-SNAPSHOT. Add the following dependencies:
 
-    `"com.akolov" %% "pepper-core" % "${version}"`. 
-  
-For http4s routes,
-
-    `"com.akolov" %% "pepper-http4s" % "${version}T"`
+    "com.akolov" %% "pepper-core" % "${version}"  
+    "com.akolov" %% "pepper-http4s" % "${version}" // for http4s
     
     
 ## Developer's notes
 
-    sbt publishSigned
+    set GPG_TTY (tty)
+    sbt `+ publishSigned'
     sbt sonatypeReleaseAll
 
     sbt '++2.12.10! docs/mdoc' // project-docs/target/mdoc/README.md    

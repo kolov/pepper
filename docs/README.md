@@ -46,8 +46,10 @@ to buiild an instans of `RE`:
 The additional parameters ar of type `IA`, described with `EndpointInput[IA]`.
 
 This may sound complicated. The documentation is in early stage, and 
-the explaining clearly is hard.
-Jump to the Demo application and see the sample code below, or to the [Demo](#demo).
+the explaining the concepts clearly is hard.
+
+See the source code of the [Demo](#demo) service or see the sample code below,
+tho code speaks for itself.
     
 ## Authorisation input data
 
